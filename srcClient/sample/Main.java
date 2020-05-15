@@ -8,11 +8,15 @@ import javafx.stage.Stage;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main extends Application {
 
-    public static void main(String[] args) {
+//    C:\Users\Michał\Desktop\test2
+//    C:\Users\Michał\Desktop\TestD
 
+    public static void main(String[] args) {
 
         launch(args);
     }
@@ -26,6 +30,17 @@ public class Main extends Application {
         primaryStage.setScene(new Scene(root, 600, 400));
         primaryStage.show();
 
-
     }
 }
+
+
+//    ExecutorService executor = Executors.newFixedThreadPool(10);
+//executor.shutdown();
+//        try{
+//        if(!executor.awaitTermination(800,TimeUnit.MILLISECONDS))
+//        {
+//        executor.shutdownNow();
+//        }
+//        }catch(InterruptedException e){
+//        executor.shutdownNow();
+//        }

@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.ResourceBundle;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Controller implements Initializable {
 
@@ -168,23 +170,14 @@ public class Controller implements Initializable {
 
 
     void updateUsersList(ArrayList<String> list) {
-
         Platform.runLater(() -> {
             for (String usr : list) {
+
                 if (observableListClients.contains(usr) == false) {
                     observableListClients.add(usr);
                 }
             }
         });
-
-//        Platform.runLater(()->{
-//            for (String usr : observableListClients){
-//                if(list.contains((usr.toString())) == false ){
-//                    String temp = usr.toString();
-//                    observableListClients.remove(temp);
-//                }
-//            }
-//        });
     }
 
 
@@ -208,6 +201,9 @@ public class Controller implements Initializable {
 
         Thread threadServerOperationHandler = new Thread(this::serverOperationHandler);
         threadServerOperationHandler.start();
+
+
+
 
 
     }
@@ -281,7 +277,7 @@ public class Controller implements Initializable {
 
             while (true) {
                 m = queue.take();
-
+                System.out.println(m.getMessageID());
 
                 if (m.getMessageID().equals(CommunicationMessage.MessageType.CHECK_FILE)) {
                     connectionClass.out.writeObject(m);
@@ -341,6 +337,9 @@ public class Controller implements Initializable {
                     connectionClass.out.flush();
 
 
+                }else if(m.getMessageID().equals(CommunicationMessage.MessageType.LOGOUT) ){
+                    connectionClass.out.writeObject(m);
+                    connectionClass.out.flush();
                 }
 
 
@@ -465,6 +464,13 @@ public class Controller implements Initializable {
 
     public void onShutdownApp() {
         System.out.println("koniec ap");
+        try {
+            CommunicationMessage m = new CommunicationMessage();
+            m.setMessageID(CommunicationMessage.MessageType.LOGOUT);
+            queue.put(m);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 

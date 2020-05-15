@@ -26,7 +26,8 @@ public class CommunicationMessage implements Serializable {
         FILE_TO_OTHER_USER,
         MODIFY_FILE,
         DELETE_FILE,
-        UPDATE_CLIENT_LIST
+        UPDATE_CLIENT_LIST,
+        LOGOUT
     }
 
     public MessageType getMessageID() {
