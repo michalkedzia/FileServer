@@ -9,8 +9,8 @@ public class ConnectionClass {
     public ObjectOutputStream out;
     public ObjectInputStream in;
 
-    public DataOutputStream dos ;
-    public DataInputStream dis ;
+    public DataOutputStream dos;
+    public DataInputStream dis;
     public Socket clientSocketFile;
 
     private void openConnection(String ip, int port) throws ConnectException {
@@ -43,7 +43,7 @@ public class ConnectionClass {
         }
     }
 
-    private void closeConnection() {
+    public void closeConnection() {
         try {
             this.in.close();
             this.out.close();
@@ -75,12 +75,8 @@ public class ConnectionClass {
 
             openConnectionFile("127.0.0.1", portMessage.getPort() + 1);
             openConnection("127.0.0.1", portMessage.getPort());
-
-
-
-
-
         } catch (IOException | ClassNotFoundException | ConnectException e) {
+
             e.printStackTrace();
         }
 
@@ -96,8 +92,7 @@ public class ConnectionClass {
         fis.close();
     }
 
-
-    public synchronized void reciveFile(String path,long fileSize) throws IOException {
+    public synchronized void reciveFile(String path, long fileSize) throws IOException {
         FileOutputStream fos = new FileOutputStream(path);
         byte[] buffer = new byte[4096];
         long bufferSize = 4096;
@@ -105,22 +100,22 @@ public class ConnectionClass {
         boolean f = false;
 
 
-        if((fileSize % bufferSize) > 0){
-            packets = ((int)(fileSize / bufferSize)) + 1;
-            f= true;
-        }else {
-            packets = ((int)(fileSize / bufferSize)) ;
+        if ((fileSize % bufferSize) > 0) {
+            packets = ((int) (fileSize / bufferSize)) + 1;
+            f = true;
+        } else {
+            packets = ((int) (fileSize / bufferSize));
         }
 
         int read = 0;
         int totalRead = 0;
-        int remaining = (int)fileSize;
-        for(int i=0;i<packets;i++){
+        int remaining = (int) fileSize;
+        for (int i = 0; i < packets; i++) {
 
-            if((packets - 1 )==i && f ==true){
+            if ((packets - 1) == i && f == true) {
                 read = dis.read(buffer, 0, buffer.length);
-                fos.write(buffer, 0, (int)(fileSize % bufferSize));
-            }else {
+                fos.write(buffer, 0, (int) (fileSize % bufferSize));
+            } else {
                 read = dis.read(buffer, 0, buffer.length);
                 fos.write(buffer, 0, read);
             }
@@ -129,26 +124,23 @@ public class ConnectionClass {
         fos.close();
     }
 
+    public synchronized long checkFileSize(String path) {
+        File f = new File(path);
 
-    public  synchronized  long  checkFileSize(String path){
-        File f= new File(path);
         return f.length();
     }
 
-
-
-    public void openConnectionFile(String ip, int port){
-        try{
-            this.clientSocketFile = new Socket(ip,port );
+    public void openConnectionFile(String ip, int port) {
+        try {
+            this.clientSocketFile = new Socket(ip, port);
             this.dos = new DataOutputStream(clientSocketFile.getOutputStream());
             this.dis = new DataInputStream(clientSocketFile.getInputStream());
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-
-    public void closeConnectionFile(){
+    public void closeConnectionFile() {
         try {
             this.dos.close();
             this.clientSocketFile.close();

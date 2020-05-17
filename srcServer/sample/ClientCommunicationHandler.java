@@ -11,8 +11,7 @@ import java.net.ServerSocket;
 import java.net.*;
 import java.nio.file.*;
 import java.util.ArrayList;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.*;
 
 public class ClientCommunicationHandler extends Thread {
     private ServerSocket serverSocket;
@@ -20,7 +19,7 @@ public class ClientCommunicationHandler extends Thread {
     private Socket clientSocket;
     private ObjectOutputStream out;
     private ObjectInputStream in;
-    private static String path = "C:\\Users\\Michał\\IdeaProjects\\Server\\UserDirectories";
+    private static String path = "UserDirectories"; // <-------- Nalezy stworzyc katalog i padac sciezke
     ArrayList<String> clientList;
     private Controller controller;
     String userName;
@@ -32,9 +31,8 @@ public class ClientCommunicationHandler extends Thread {
     private Socket clientSocketFile;
 
 
+    ExecutorService executor = Executors.newFixedThreadPool(5);
     BlockingQueue<CommunicationMessage> queue = new ArrayBlockingQueue<CommunicationMessage>(10);
-    BlockingQueue<CommunicationMessage> queueToUser = new ArrayBlockingQueue<CommunicationMessage>(10);
-
 
     public ClientCommunicationHandler(int port, ArrayList<String> clientList, Controller controller, String userName) {
         this.port = port;
@@ -65,8 +63,11 @@ public class ClientCommunicationHandler extends Thread {
             }
         });
 
-        Thread thread = new Thread(this::observer);
-        thread.start();
+
+        executor.execute(this::observer);
+
+//        Thread thread = new Thread(this::observer);
+//        thread.start();
 
     }
 
@@ -79,7 +80,6 @@ public class ClientCommunicationHandler extends Thread {
             dos.write(buffer);
         }
         fis.close();
-
     }
 
     public synchronized long checkFileSize(String path) {
@@ -95,7 +95,6 @@ public class ClientCommunicationHandler extends Thread {
         long bufferSize = 4096;
         int packets = 0;
         boolean f = false;
-
 
         if ((fileSize % bufferSize) > 0) {
             packets = ((int) (fileSize / bufferSize)) + 1;
@@ -213,7 +212,7 @@ public class ClientCommunicationHandler extends Thread {
 
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.FILE)) {
 
-
+                    System.out.println(userName + "   " + m.getFileSize());
                     reciveFile(path + "\\" + userName + "\\" + m.getFileName(), m.getFileSize());
 
 
@@ -256,6 +255,11 @@ public class ClientCommunicationHandler extends Thread {
                     File fileToDelete = new File(path + "\\" + userName + "\\" + m.getFileName());
                     fileToDelete.delete();
 
+                } else if (m.getMessageID().equals(CommunicationMessage.MessageType.LOGOUT)) {
+                    m.setMessageID(CommunicationMessage.MessageType.LOGOUT);
+                    queue.put(m);
+
+
                 } else {
                     System.out.println("Blad ");
                     System.out.println(m.getMessageID());
@@ -264,7 +268,9 @@ public class ClientCommunicationHandler extends Thread {
 
             }
 
-        } catch (Exception e) {
+        } catch (EOFException e){
+            System.out.println(e.toString());
+        }catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -272,7 +278,7 @@ public class ClientCommunicationHandler extends Thread {
     }
 
 
-    void sendNewFileToUser() {
+    void serverOperationHandler() {
 
 
         CommunicationMessage m = null;
@@ -315,13 +321,26 @@ public class ClientCommunicationHandler extends Thread {
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.UPDATE_CLIENT_LIST)) {
                     out.writeObject(m);
                     out.flush();
+                } else if (m.getMessageID().equals(CommunicationMessage.MessageType.LOGOUT)) {
+
+                    System.out.println("wylogowanie " + userName);
+
+                    clientList.remove(userName);
+                    Platform.runLater(() -> {
+                        controller.getTreeRoot().getChildren().remove(root);
+                    });
+
+
+
+                    break;
+
                 }
 
 
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println(e.toString());
         }
 
 
@@ -330,23 +349,23 @@ public class ClientCommunicationHandler extends Thread {
 
     void checkChangesClietList() {
 
-        ArrayList<String> cpy = new ArrayList<String>(clientList);
         addNewUserToList();
         while (true) {
             try {
                 Thread.sleep(2000);
 
-                if (!cpy.equals(clientList)) {
+                CommunicationMessage m = new CommunicationMessage();
+                m.setMessageID(CommunicationMessage.MessageType.UPDATE_CLIENT_LIST);
 
-                    CommunicationMessage m = new CommunicationMessage();
-                    m.setMessageID(CommunicationMessage.MessageType.UPDATE_CLIENT_LIST);
-                    m.setClientList(clientList);
-                    queue.put(m);
+                ArrayList<String> cpy = new ArrayList<String>(clientList);
 
-                    cpy = new ArrayList<String>(clientList);
+                m.setClientList(cpy);
+                queue.put(m);
 
-                }
-            } catch (Exception e) {
+
+            } catch (InterruptedException e){
+                System.out.println(e.toString());
+            }catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -360,7 +379,6 @@ public class ClientCommunicationHandler extends Thread {
 
         try {
 
-
             boolean f = true;
             clientSocket = serverSocket.accept();
 
@@ -369,7 +387,6 @@ public class ClientCommunicationHandler extends Thread {
             dos = new DataOutputStream(clientSocketFile.getOutputStream());
             dis = new DataInputStream(clientSocketFile.getInputStream());
             //
-
 
             out = new ObjectOutputStream(clientSocket.getOutputStream());
             in = new ObjectInputStream(clientSocket.getInputStream());
@@ -383,25 +400,35 @@ public class ClientCommunicationHandler extends Thread {
                 controller.getTreeRoot().getChildren().add(root);
             });
 
-
-//            addNewUserToList();
-
-
             initServerClinetFiles();
-
-
             initObservableListFiles();
 
 
-            Thread threaduserOperationHandler = new Thread(this::userOperationHandler);
-            threaduserOperationHandler.start();
+
+            executor.execute(new Thread(this::checkChangesClietList));
+            executor.execute(new Thread(this::serverOperationHandler));
+
+//            Thread threaduserOperationHandler = new Thread(this::checkChangesClietList);
+//            threaduserOperationHandler.start();
 
 
-            Thread threadSendNewFileToUser = new Thread(this::sendNewFileToUser);
-            threadSendNewFileToUser.start();
+//            Thread threadSendNewFileToUser = new Thread(this::sendNewFileToUser);
+//            threadSendNewFileToUser.start();
+
+            userOperationHandler();
 
 
-            checkChangesClietList();
+
+
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(2000, TimeUnit.MILLISECONDS)) {
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+            }
+
 
 
             //
@@ -416,6 +443,7 @@ public class ClientCommunicationHandler extends Thread {
             clientSocket.close();
             serverSocket.close();
 
+            System.out.println("koniec usera "  + userName );
         } catch (EOFException eof) {
             //  moze, rzucac  EOF przed odczytaniem okreslonej dlugosci bajtow
             eof.printStackTrace();

@@ -13,21 +13,21 @@ public class CommunicationMessage implements Serializable {
     private long fileSize;
     private int numberOfFileToCheck;
     private String userNameFileSend;
-
     public enum MessageType {
         CHECK_FILE,
         FILE_ON_SERVER,
         FILE_NOT_ON_SERVER,
         FILE_ON_USER,
-        FILE_NOT_ON_USER,
-        NUMBER_OF_FILE_TO_CHCEK,
-        READY,
+        FILE_NOT_ON_USER ,
+        NUMBER_OF_FILE_TO_CHCEK ,
+        READY ,
         FILE,
         FILE_TO_USER,
         FILE_TO_OTHER_USER,
         MODIFY_FILE,
         DELETE_FILE,
-        UPDATE_CLIENT_LIST
+        UPDATE_CLIENT_LIST,
+        LOGOUT
     }
 
     public MessageType getMessageID() {

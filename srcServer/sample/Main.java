@@ -10,7 +10,6 @@ public class Main extends Application {
 
     public static void main(String[] args) {
 
-        System.out.println("gitlab test");
         launch(args);
     }
 
@@ -25,10 +24,12 @@ public class Main extends Application {
         primaryStage.show();
 
         ServerClass s = new ServerClass();
+
         s.startServer(loader.getController());
 
 
     }
+
 }
 
 

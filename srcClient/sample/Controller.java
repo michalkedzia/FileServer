@@ -11,21 +11,18 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ListView;
 
 import java.io.*;
+import java.net.SocketException;
 import java.net.URL;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.ResourceBundle;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class Controller implements Initializable {
 
     private String userName;
     private String path;
     private ConnectionClass connectionClass = null;
-
 
     @FXML
     private Label clientStatus;
@@ -45,21 +42,34 @@ public class Controller implements Initializable {
     @FXML
     private ComboBox<String> choseFile;
 
+    private ExecutorService executor = Executors.newFixedThreadPool(10);
+    private ObservableList<String> observableListFiles = FXCollections.observableArrayList();
+    private ObservableList<String> observableListClients = FXCollections.observableArrayList();
+    private BlockingQueue<CommunicationMessage> queue = new ArrayBlockingQueue<CommunicationMessage>(10);
 
-    ObservableList<String> observableListFiles = FXCollections.observableArrayList("FILES");
-    ObservableList<String> observableListClients = FXCollections.observableArrayList("USERS");
-
-    BlockingQueue<CommunicationMessage> queue = new ArrayBlockingQueue<CommunicationMessage>(10);
+    private BlockingQueue<String> clientStatusQueue = new ArrayBlockingQueue<String>(10);
 
     void setUserNameAndPath(String userName, String path) {
         this.userName = userName;
         this.path = path;
     }
 
+    synchronized void setClientStatus(String status) {
+
+        Platform.runLater(() -> {
+            clientStatus.setText(status);
+        });
+        try {
+            Thread.sleep(3000);
+        } catch (Exception e) {
+        }
+    }
+
 
     void initUserFileAndServerFile() {
 
         try {
+
             CommunicationMessage m = new CommunicationMessage();
             String[] temp;
             File f = new File(path);
@@ -70,9 +80,7 @@ public class Controller implements Initializable {
             connectionClass.out.writeObject(m);
             connectionClass.out.flush();
 
-
             m = (CommunicationMessage) connectionClass.in.readObject();
-
 
             for (String fileName : temp) {
 
@@ -81,9 +89,7 @@ public class Controller implements Initializable {
                 connectionClass.out.writeObject(m);
                 connectionClass.out.flush();
 
-
                 m = (CommunicationMessage) connectionClass.in.readObject();
-
 
                 if (m.getMessageID() == CommunicationMessage.MessageType.FILE_NOT_ON_SERVER) {
 
@@ -92,14 +98,11 @@ public class Controller implements Initializable {
                     m.setMessageID(CommunicationMessage.MessageType.FILE);
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
-
                     connectionClass.sendFile(path + "\\" + fileName);
-
                 } else if (m.getMessageID() == CommunicationMessage.MessageType.FILE_ON_SERVER) {
 
                 }
             }
-
 
             m.setMessageID(CommunicationMessage.MessageType.READY);
             connectionClass.out.writeObject(m);
@@ -107,9 +110,7 @@ public class Controller implements Initializable {
 
             m = (CommunicationMessage) connectionClass.in.readObject();
 
-
             if (m.getMessageID() == CommunicationMessage.MessageType.NUMBER_OF_FILE_TO_CHCEK) {
-
 
                 File ff = new File(path);
                 temp = ff.list();
@@ -123,10 +124,9 @@ public class Controller implements Initializable {
                 for (int i = 0; i < counter; i++) {
                     m = (CommunicationMessage) connectionClass.in.readObject();
 
-
                     for (String fileName : temp) {
-                        if (fileName.equals(m.getFileName()) == true) {
 
+                        if (fileName.equals(m.getFileName()) == true) {
                             flag = true;
                         }
                     }
@@ -143,43 +143,46 @@ public class Controller implements Initializable {
                         m.setMessageID(CommunicationMessage.MessageType.READY);
                         connectionClass.out.writeObject(m);
                         connectionClass.out.flush();
-
-
                     } else {
+
                         m.setMessageID(CommunicationMessage.MessageType.FILE_ON_USER);
                         connectionClass.out.writeObject(m);
                         connectionClass.out.flush();
-
                     }
                     flag = false;
                 }
             } else {
+
                 System.out.println("Blad");
                 System.out.println(m.getMessageID());
             }
 
-//            updateUsersList(m.getClientList()); !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
     }
 
 
     void updateUsersList(ArrayList<String> list) {
-        Platform.runLater(() -> {
-            for (String usr : list) {
 
-                if (observableListClients.contains(usr) == false) {
-                    observableListClients.add(usr);
+        Platform.runLater(() -> {
+            try {
+                for (String usr : list) {
+                    if (observableListClients.contains(usr) == false) {
+                        observableListClients.add(usr);
+                    }
                 }
+
+                for (String usr : observableListClients) {
+                    if (list.contains(usr) == false) {
+                        observableListClients.remove(usr);
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println(e.toString());
             }
         });
     }
-
 
     void initObservableListFiles() {
 
@@ -191,21 +194,9 @@ public class Controller implements Initializable {
             observableListFiles.add(pathname);
         }
 
-        Thread thread = new Thread(this::handleThread);
-        thread.start();
-
-
-        Thread threadSendNewFileToServer = new Thread(this::sendFileToServer);
-        threadSendNewFileToServer.start();
-
-
-        Thread threadServerOperationHandler = new Thread(this::serverOperationHandler);
-        threadServerOperationHandler.start();
-
-
-
-
-
+        executor.execute(new Thread(this::handleThread));
+        executor.execute(new Thread(this::sendFileToServer));
+        executor.execute(new Thread(this::serverOperationHandler));
     }
 
 
@@ -213,19 +204,18 @@ public class Controller implements Initializable {
 
         CommunicationMessage m = null;
 
-
         try {
+
             while (true) {
 
-
                 m = (CommunicationMessage) connectionClass.in.readObject();
-
 
                 if (m.getMessageID().equals(CommunicationMessage.MessageType.FILE_NOT_ON_SERVER)) {
                     m.setMessageID(CommunicationMessage.MessageType.FILE);
                     queue.put(m);
 
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.CHECK_FILE)) {
+
                     String[] temp;
                     File f = new File(path);
                     temp = f.list();
@@ -239,54 +229,53 @@ public class Controller implements Initializable {
                     }
 
                     if (flag == false) {
+
                         m.setMessageID(CommunicationMessage.MessageType.FILE_NOT_ON_USER);
                         queue.put(m);
-
                     } else {
 
                     }
 
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.FILE)) {
 
+                    setClientStatus("Pobieram...");
                     connectionClass.reciveFile(path + "\\" + m.getFileName(), m.getFileSize());
-
-
+                    setClientStatus("Sprawdzam...");
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.UPDATE_CLIENT_LIST)) {
-                    updateUsersList(m.getClientList());
 
+                    updateUsersList(m.getClientList());
                 } else {
+
                     System.out.println("Blad");
                 }
-
-
             }
-
+        } catch (SocketException e) {
+            System.out.println(e.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
     }
-
 
     void sendFileToServer() {
 
         CommunicationMessage m = new CommunicationMessage();
 
         try {
-
             while (true) {
                 m = queue.take();
                 System.out.println(m.getMessageID());
 
                 if (m.getMessageID().equals(CommunicationMessage.MessageType.CHECK_FILE)) {
+
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
-
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.FILE)) {
+
+                    setClientStatus("Wysylam...");
                     m.setFileSize(connectionClass.checkFileSize(path + "\\" + m.getFileName()));
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
+
                     try {
                         connectionClass.sendFile(path + "\\" + m.getFileName());
                     } catch (Exception e) {
@@ -299,25 +288,27 @@ public class Controller implements Initializable {
                         }
                     }
 
+                    setClientStatus("Sprawdzam...");
 
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.FILE_TO_OTHER_USER)) {
-                    m.setFileSize(connectionClass.checkFileSize(path + "\\" + choseFile.getValue()));
 
+                    m.setFileSize(connectionClass.checkFileSize(path + "\\" + choseFile.getValue()));
+                    setClientStatus("Wysylam...");
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
                     connectionClass.sendFile(path + "\\" + m.getFileName());
-
-
+                    setClientStatus("Sprawdzam...");
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.FILE_NOT_ON_USER)) {
+
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
-
-
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.MODIFY_FILE)) {
 
+                    setClientStatus("Wysylam...");
                     m.setFileSize(connectionClass.checkFileSize(path + "\\" + m.getFileName()));
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
+
                     try {
                         connectionClass.sendFile(path + "\\" + m.getFileName());
                     } catch (Exception e) {
@@ -329,28 +320,24 @@ public class Controller implements Initializable {
                             connectionClass.sendFile(path + "\\" + m.getFileName());
                         }
                     }
-
+                    setClientStatus("Sprawdzam...");
 
                 } else if (m.getMessageID().equals(CommunicationMessage.MessageType.DELETE_FILE)) {
 
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
+                } else if (m.getMessageID().equals(CommunicationMessage.MessageType.LOGOUT)) {
 
-
-                }else if(m.getMessageID().equals(CommunicationMessage.MessageType.LOGOUT) ){
                     connectionClass.out.writeObject(m);
                     connectionClass.out.flush();
                 }
-
-
             }
-
+        } catch (InterruptedException e) {
+            System.out.println(e.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
-
 
     private void handleThread() {
 
@@ -366,17 +353,13 @@ public class Controller implements Initializable {
                     StandardWatchEventKinds.ENTRY_DELETE,
                     StandardWatchEventKinds.ENTRY_MODIFY);
 
-
             WatchKey key;
             while ((key = watchService.take()) != null) {
                 for (WatchEvent<?> event : key.pollEvents()) {
 
-
                     if (event.kind().equals(StandardWatchEventKinds.ENTRY_CREATE) == true) {
                         Platform.runLater(() -> {
-                            clientStatus.setText("Dodano plik : " + event.context().toString());
                             observableListFiles.addAll(event.context().toString());
-
                         });
 
                         try {
@@ -388,15 +371,13 @@ public class Controller implements Initializable {
                             e.printStackTrace();
                         }
 
-
                     }
 
                     if (event.kind().equals(StandardWatchEventKinds.ENTRY_DELETE) == true) {
+
                         Platform.runLater(() -> {
-                            clientStatus.setText("Usuneieto plik : " + event.context().toString());
                             observableListFiles.removeAll(event.context().toString());
                         });
-
 
                         try {
                             CommunicationMessage m = new CommunicationMessage();
@@ -406,13 +387,9 @@ public class Controller implements Initializable {
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
-
-
                     }
 
-
                     if (event.kind().equals(StandardWatchEventKinds.ENTRY_MODIFY) == true) {
-
 
                         try {
                             CommunicationMessage m = new CommunicationMessage();
@@ -422,19 +399,16 @@ public class Controller implements Initializable {
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
-
-
                     }
-
-
                 }
                 key.reset();
             }
+        } catch (InterruptedException e) {
+            System.out.println(e.toString());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
-
 
     public void setConnectionClass(ConnectionClass connectionClass) {
         this.connectionClass = connectionClass;
@@ -457,13 +431,10 @@ public class Controller implements Initializable {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-
     }
 
-
     public void onShutdownApp() {
-        System.out.println("koniec ap");
+
         try {
             CommunicationMessage m = new CommunicationMessage();
             m.setMessageID(CommunicationMessage.MessageType.LOGOUT);
@@ -471,13 +442,24 @@ public class Controller implements Initializable {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
 
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(2000, TimeUnit.MILLISECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+        }
+
+        connectionClass.closeConnectionFile();
+        connectionClass.closeConnection();
+    }
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        choseFile.setPromptText("Wybierz plik do wysłania.");
-        choseClient.setPromptText("Wybierz uzytkownika.");
+        choseFile.setPromptText("Choose a file");
+        choseClient.setPromptText("Select the user");
         choseFile.setItems(observableListFiles);
         choseClient.setItems(observableListClients);
         fileList.setItems(observableListFiles);
