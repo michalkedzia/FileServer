@@ -13,6 +13,9 @@ import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.concurrent.*;
 
+/**
+ * Klasa obslugujaca pojedynczego uzytkownika
+ */
 public class ClientCommunicationHandler extends Thread {
     private ServerSocket serverSocket;
     int port;
@@ -34,6 +37,14 @@ public class ClientCommunicationHandler extends Thread {
     ExecutorService executor = Executors.newFixedThreadPool(5);
     BlockingQueue<CommunicationMessage> queue = new ArrayBlockingQueue<CommunicationMessage>(10);
 
+    /**
+     * Konstruktor klasy, otwiera dodatkowy port do przesylania plikow
+     *
+     * @param controller controller przekazany przez klasy
+     * @param port       port otrzymany od serwera
+     * @param userName   nazwa uzytkownika
+     * @param clientList lista klientow zalogowanych
+     */
     public ClientCommunicationHandler(int port, ArrayList<String> clientList, Controller controller, String userName) {
         this.port = port;
         this.clientList = clientList;
@@ -50,6 +61,10 @@ public class ClientCommunicationHandler extends Thread {
         }
     }
 
+    /**
+     * Dodaje uzytkownika i jego pliki na liste klientow zalogowanych na serwerze.
+     * Uruchamia watek obserwujacy katalog loklany na serwerze.
+     */
     void initObservableListFiles() {
 
         String[] temp;
@@ -72,6 +87,12 @@ public class ClientCommunicationHandler extends Thread {
     }
 
 
+    /**
+     * Wysula plik do uzytkownika
+     *
+     * @param path sciezka do pliku
+     * @throws IOException
+     */
     synchronized void sendFile(String path) throws IOException {
 
         FileInputStream fis = new FileInputStream(path);
@@ -82,12 +103,24 @@ public class ClientCommunicationHandler extends Thread {
         fis.close();
     }
 
+    /**
+     * Sprawdza rozmiar danego pliku.
+     *
+     * @param path scizka do pliku
+     */
     public synchronized long checkFileSize(String path) {
         File f = new File(path);
         return f.length();
     }
 
 
+    /**
+     * Odbiera plik od uzytkownika.
+     *
+     * @param path     sciezka do pliku
+     * @param fileSize rozmiar pliku do wyslania
+     * @throws IOException
+     */
     synchronized void reciveFile(String path, long fileSize) throws IOException {
 
         FileOutputStream fos = new FileOutputStream(path);
@@ -122,6 +155,9 @@ public class ClientCommunicationHandler extends Thread {
     }
 
 
+    /**
+     * Prywatna metoda, obserwuje lokalny folder uzytkownika na serwerze i reaguje na zmiany w nim.
+     */
     private void observer() {
         try {
             WatchService watchService
@@ -179,6 +215,9 @@ public class ClientCommunicationHandler extends Thread {
     }
 
 
+    /**
+     * Rejestruje/loguje uzytkownika na serwrze. Jesli uzytkownik o podanej nazwie nie ma folderu, tworzy go.
+     */
     public void registerUser() {
         String[] directories;
         File ff = new File(path);
@@ -197,7 +236,9 @@ public class ClientCommunicationHandler extends Thread {
         }
     }
 
-
+    /**
+     * Obsuguje operacje przychodzace od klienta i dodaje je do kolejki lub wykonuje odr azu np.odbiera plik, usuwa plik
+     */
     void userOperationHandler() {
 
         CommunicationMessage m = null;
@@ -268,9 +309,9 @@ public class ClientCommunicationHandler extends Thread {
 
             }
 
-        } catch (EOFException e){
+        } catch (EOFException e) {
             System.out.println(e.toString());
-        }catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
 
@@ -278,6 +319,9 @@ public class ClientCommunicationHandler extends Thread {
     }
 
 
+    /**
+     * Zdejmuje operacje z kojelki i wykonuje je np. wysyla plik do uzytkownika
+     */
     void serverOperationHandler() {
 
 
@@ -331,7 +375,6 @@ public class ClientCommunicationHandler extends Thread {
                     });
 
 
-
                     break;
 
                 }
@@ -346,7 +389,9 @@ public class ClientCommunicationHandler extends Thread {
 
     }
 
-
+    /**
+     * Co okreslony czas wysyla klientowi liste aktualnie zalogowanych klientow
+     */
     void checkChangesClietList() {
 
         addNewUserToList();
@@ -363,9 +408,9 @@ public class ClientCommunicationHandler extends Thread {
                 queue.put(m);
 
 
-            } catch (InterruptedException e){
+            } catch (InterruptedException e) {
                 System.out.println(e.toString());
-            }catch (Exception e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -374,6 +419,9 @@ public class ClientCommunicationHandler extends Thread {
     }
 
 
+    /**
+     * Otwiera dodatkowe porty, uruchamia niezbędne watki, po wylogowaniu uzytkownika zamuka wszystkie porty i strumienie i konczy sie.
+     */
     @Override
     public void run() {
 
@@ -404,21 +452,10 @@ public class ClientCommunicationHandler extends Thread {
             initObservableListFiles();
 
 
-
             executor.execute(new Thread(this::checkChangesClietList));
             executor.execute(new Thread(this::serverOperationHandler));
 
-//            Thread threaduserOperationHandler = new Thread(this::checkChangesClietList);
-//            threaduserOperationHandler.start();
-
-
-//            Thread threadSendNewFileToUser = new Thread(this::sendNewFileToUser);
-//            threadSendNewFileToUser.start();
-
             userOperationHandler();
-
-
-
 
             executor.shutdown();
             try {
@@ -428,7 +465,6 @@ public class ClientCommunicationHandler extends Thread {
             } catch (InterruptedException e) {
                 executor.shutdownNow();
             }
-
 
 
             //
@@ -443,7 +479,7 @@ public class ClientCommunicationHandler extends Thread {
             clientSocket.close();
             serverSocket.close();
 
-            System.out.println("koniec usera "  + userName );
+            System.out.println("koniec usera " + userName);
         } catch (EOFException eof) {
             //  moze, rzucac  EOF przed odczytaniem okreslonej dlugosci bajtow
             eof.printStackTrace();
@@ -452,10 +488,16 @@ public class ClientCommunicationHandler extends Thread {
         }
     }
 
+    /**
+     * Dodaje uzytkownika do listy klientow zalogowanych.
+     */
     synchronized public void addNewUserToList() {
         clientList.add(userName);
     }
 
+    /**
+     * Metoda uruchamina zaraz po starcie. Odpytuje klienta o nowe piki i odbiera je i wysyla pliki ktorych nie ma uzytkownik.
+     */
     public void initServerClinetFiles() {
         try {
             CommunicationMessage m;

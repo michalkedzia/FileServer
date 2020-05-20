@@ -12,6 +12,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * Klasa obsulugujaca serwer, polaczenia od klientow
+ */
 public class ServerClass {
 
     public ServerSocket serverSocket;
@@ -21,12 +24,10 @@ public class ServerClass {
     public Controller controller;
     ExecutorService executor = Executors.newFixedThreadPool(30);
 
-    //
-
-
-    void onClose(){
-        System.out.println("close server");
-
+    /**
+     * Zamyka serwer, porty i otwarte strumienie, zabija watki
+     */
+    void onClose() {
 
         executor.shutdown();
         try {
@@ -37,28 +38,28 @@ public class ServerClass {
             executor.shutdownNow();
         }
 
-
-       stopServer();
-
-
-        Set<Thread> threadSet = Thread.getAllStackTraces().keySet();
-        System.out.println(threadSet);
+        stopServer();
 
     }
 
-
+    /**
+     * Startuje serwer i inicjalizuje liste klientow
+     *
+     * @param controller controller do aplikacji serwera
+     */
     public void startServer(Controller controller) {
         clientList = new ArrayList<String>(100);
         this.controller = controller;
         executor.execute(new Thread(this::startServerHandle));
 
-
-
-        this.controller.getPane().getScene().getWindow().setOnCloseRequest(e->{
+        this.controller.getPane().getScene().getWindow().setOnCloseRequest(e -> {
             onClose();
         });
     }
 
+    /**
+     * Akceptuje polaczenia przychodzace od klientow, tworzy nowy watek ktory odpytuje klienta i przyznaje mu pule portow
+     */
     private void startServerHandle() {
         try {
             serverSocket = new ServerSocket(this.serverSocketDefaultPort);
@@ -71,6 +72,9 @@ public class ServerClass {
         }
     }
 
+    /**
+     * Zamyka glowny strumien serwera.
+     */
     public void stopServer() {
         try {
             serverSocket.close();
@@ -80,8 +84,9 @@ public class ServerClass {
     }
 
 
-
-
+    /**
+     * Prywatna klasa ktora, odpytuje uzytkownika o nazwe  i uruchamia watek obsugujacy komunikacje pomiedzy nimi
+     */
     private static class ClientHandler extends Thread {
         private Socket clientSocket;
         private ObjectOutputStream out;
@@ -89,12 +94,22 @@ public class ServerClass {
         private int newClientPort;
         ServerClass server = null;
 
+        /**
+         * Konstruktor
+         *
+         * @param newClientPort port przyznany przez serwer dla klienta
+         * @param server        referencja do klasy ServerClass
+         * @param socket        glowny socket serwera
+         */
         public ClientHandler(Socket socket, int newClientPort, ServerClass server) {
             this.clientSocket = socket;
             this.newClientPort = newClientPort;
-            this.server=server;
+            this.server = server;
         }
 
+        /**
+         * Watek obslugujacy pobranie nazwy uzytkownika, startuje watek obslugujacy komunikacje miedzy nimi na przyznanym porcie
+         */
         @Override
         public void run() {
             try {

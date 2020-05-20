@@ -25,9 +25,6 @@ public class Controller implements Initializable {
 
     private TreeItem<String> treeRoot;
 
-//    public Pane getPane() {
-//        return pane;
-//    }
 
     public VBox getPane() {
         return pane;
@@ -37,6 +34,12 @@ public class Controller implements Initializable {
         return treeRoot;
     }
 
+    /**
+     * Tworzy liste klinetow zalogowanych na serwerze
+     *
+     * @param resourceBundle resourceBundle
+     * @param url            url
+     */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
 

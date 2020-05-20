@@ -3,6 +3,9 @@ package sample;
 import java.io.*;
 import java.util.ArrayList;
 
+/**
+ * Klasa opisujace komunikaty wyminiane pomiedzy klinetem i serwerem
+ */
 public class CommunicationMessage implements Serializable {
 
     private MessageType messageID;
@@ -14,6 +17,9 @@ public class CommunicationMessage implements Serializable {
     private int numberOfFileToCheck;
     private String userNameFileSend;
 
+    /**
+     * Typ wyliczeniowy opisujacy rodzaj operacji.
+     */
     public enum MessageType {
         CHECK_FILE,
         FILE_ON_SERVER,

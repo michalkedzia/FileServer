@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.ResourceBundle;
 import java.util.concurrent.*;
 
+/**
+ * Klasa obsugująca wszystkie operacje pomiedzy klientem oraz serwerem.
+ */
 public class Controller implements Initializable {
 
     private String userName;
@@ -49,23 +52,36 @@ public class Controller implements Initializable {
 
     private BlockingQueue<String> clientStatusQueue = new ArrayBlockingQueue<String>(10);
 
+    /**
+     * Ustawia nazwe uzytkownika oraz sciezke do katalogu
+     *
+     * @param path
+     * @param userName
+     */
     void setUserNameAndPath(String userName, String path) {
         this.userName = userName;
         this.path = path;
     }
 
+    /**
+     * Ustawia aktualny status kliena.
+     *
+     * @param status Status do wyświetlania w GUI.
+     */
     synchronized void setClientStatus(String status) {
 
         Platform.runLater(() -> {
             clientStatus.setText(status);
         });
         try {
-            Thread.sleep(3000);
+            Thread.sleep(1000);
         } catch (Exception e) {
         }
     }
 
-
+    /**
+     * Odpytuje serwer o nowe pliki dostepne do klienta i wysyła pliki z katalogu klienta, ktorych nie ma na serwerze.
+     */
     void initUserFileAndServerFile() {
 
         try {
@@ -162,7 +178,11 @@ public class Controller implements Initializable {
         }
     }
 
-
+    /**
+     * Odswieza liste uzytkownikow dostepnych na serwerze.
+     *
+     * @param list Lista aktualnie zalogowanych uzytkownikow uzytkownikow
+     */
     void updateUsersList(ArrayList<String> list) {
 
         Platform.runLater(() -> {
@@ -184,6 +204,10 @@ public class Controller implements Initializable {
         });
     }
 
+    /**
+     * Dodaje pliki do listy plikow w GUI.
+     * Uruchamia watki obslugujace watchDirectory,serverOperationHandler, sendToServer.
+     */
     void initObservableListFiles() {
 
         String[] temp;
@@ -194,12 +218,15 @@ public class Controller implements Initializable {
             observableListFiles.add(pathname);
         }
 
-        executor.execute(new Thread(this::handleThread));
-        executor.execute(new Thread(this::sendFileToServer));
+        executor.execute(new Thread(this::watchDirectory));
+        executor.execute(new Thread(this::sendToServer));
         executor.execute(new Thread(this::serverOperationHandler));
     }
 
-
+    /**
+     * Odczytuje operacje od serwera, dodaje je do kolejki zadan do wykonania lub od razu je wykonuje np.
+     * wysyla plik dodany do folderu.
+     */
     void serverOperationHandler() {
 
         CommunicationMessage m = null;
@@ -256,7 +283,10 @@ public class Controller implements Initializable {
         }
     }
 
-    void sendFileToServer() {
+    /**
+     * Zdejmuje operacje z kolejki do wykonania i wykonuje je, np.  wysyla plik do serwera.
+     */
+    void sendToServer() {
 
         CommunicationMessage m = new CommunicationMessage();
 
@@ -339,7 +369,10 @@ public class Controller implements Initializable {
         }
     }
 
-    private void handleThread() {
+    /**
+     * Obserwuje lokalny katalog i reaguje na jego zmiany, aktualizujac liste plikow lub umieszczajac operacje w kolejce.
+     */
+    private void watchDirectory() {
 
         try {
             WatchService watchService
@@ -410,14 +443,25 @@ public class Controller implements Initializable {
         }
     }
 
+    /**
+     * Ustawia klase ConnectionClass.
+     *
+     * @param connectionClass Referancja do klasy ConnectionClass
+     */
     public void setConnectionClass(ConnectionClass connectionClass) {
         this.connectionClass = connectionClass;
     }
 
+    /**
+     * Pobiera klase ConnectionClass
+     */
     public ConnectionClass getConnectionClass() {
         return connectionClass;
     }
 
+    /**
+     * Dodaje do kolejki operacje wyslania pliku do innego uzytkownika. Parametry pobiera z GUI.
+     */
     @FXML
     void sendFileToUser() {
 
@@ -433,6 +477,9 @@ public class Controller implements Initializable {
         }
     }
 
+    /**
+     * Konczy działanie aplikacji po nacisnieciu na exit. Zabija waatki dzilając w aplikacji, wylogowuje sie z serwera.
+     */
     public void onShutdownApp() {
 
         try {
@@ -456,6 +503,12 @@ public class Controller implements Initializable {
         connectionClass.closeConnection();
     }
 
+    /**
+     * Inicializacja parametrow klasy, zaraz po utworzeniu obiektu danej klasy.
+     *
+     * @param url            url
+     * @param resourceBundle resourceBundle
+     */
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         choseFile.setPromptText("Choose a file");

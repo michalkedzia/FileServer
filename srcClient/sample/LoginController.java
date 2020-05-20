@@ -14,6 +14,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
+/**
+ * Kontroler dla pliku Login.fxml. Obsluguje logowanie klienta.
+ */
 public class LoginController {
 
     @FXML
@@ -32,6 +35,11 @@ public class LoginController {
     private ObjectOutputStream out;
     private ObjectInputStream in;
 
+    /**
+     * Pobiera nazwe uzytkownika oraz sciezke do lokalnego folderu klienta.
+     * Tworzy obiekt klasy Controller oraz ConnectionClass, ustawia nazwe uzytkownika i sciezke do folderu.
+     * Inizjalizuje polaczenie z serwerem, oraz GUI.
+     */
     @FXML
     void getNameAndPath() {
         FXMLLoader loader = new FXMLLoader(this.getClass().getResource("Application.fxml"));

@@ -3,6 +3,9 @@ package sample;
 import java.io.*;
 import java.net.*;
 
+/**
+ * Klasa obslugujace operacje na strumieniach danych pomiedzy serweren i klientem.
+ */
 public class ConnectionClass {
 
     public Socket clientSocket;
@@ -13,6 +16,13 @@ public class ConnectionClass {
     public DataInputStream dis;
     public Socket clientSocketFile;
 
+    /**
+     * Otwiera polaczenie na danym porcie oraz strumienie do komunikacji pomiedzy serwerem.
+     *
+     * @param ip   ip
+     * @param port Numer portu
+     * @throws ConnectException
+     */
     private void openConnection(String ip, int port) throws ConnectException {
         try {
             this.clientSocket = new Socket(ip, port);
@@ -43,6 +53,9 @@ public class ConnectionClass {
         }
     }
 
+    /**
+     * Zamyka port oraz struminie.
+     */
     public void closeConnection() {
         try {
             this.in.close();
@@ -53,6 +66,11 @@ public class ConnectionClass {
         }
     }
 
+    /**
+     * Rejestruje/loguje uzytkowika do serwera.
+     *
+     * @param login Nazwa uzytkownika logujacego sie do serwera
+     */
     public void init(String login) {
 
         try {
@@ -82,6 +100,12 @@ public class ConnectionClass {
 
     }
 
+    /**
+     * Wysyła plik na serwer.
+     *
+     * @param path Sciezka do pliku.
+     * @throws IOException
+     */
     public synchronized void sendFile(String path) throws IOException {
         FileInputStream fis = new FileInputStream(path);
         byte[] buffer = new byte[4096];
@@ -92,6 +116,13 @@ public class ConnectionClass {
         fis.close();
     }
 
+    /**
+     * Odbiera plik wysłany z serwera.
+     *
+     * @param fileSize Rozmiar pliku.
+     * @param path     Sciezka do miejsca w ktorym ma zostac zapisany plik.
+     * @throws IOException
+     */
     public synchronized void reciveFile(String path, long fileSize) throws IOException {
         FileOutputStream fos = new FileOutputStream(path);
         byte[] buffer = new byte[4096];
@@ -124,12 +155,23 @@ public class ConnectionClass {
         fos.close();
     }
 
+    /**
+     * Sprawdza i zwraca rozmiar pliku.
+     *
+     * @param path Sciezka do pliku.
+     * @return Rozmiar pliku
+     */
     public synchronized long checkFileSize(String path) {
         File f = new File(path);
-
         return f.length();
     }
 
+    /**
+     * Otwiera port i strumienie dla wysylania/odbierania plikow.
+     *
+     * @param port Numer portu.
+     * @param ip   ip
+     */
     public void openConnectionFile(String ip, int port) {
         try {
             this.clientSocketFile = new Socket(ip, port);
@@ -140,6 +182,9 @@ public class ConnectionClass {
         }
     }
 
+    /**
+     * Zamyka port oraz strumienie dla wysylania/odbierania plikow z serwera.
+     */
     public void closeConnectionFile() {
         try {
             this.dos.close();
@@ -150,14 +195,29 @@ public class ConnectionClass {
         }
     }
 
+    /**
+     * Zwraca clientSocket
+     *
+     * @return Socket
+     */
     public Socket getClientSocket() {
         return clientSocket;
     }
 
+    /**
+     * Zwraca strumien wyjsciowy
+     *
+     * @return ObjectOutputStream
+     */
     public ObjectOutputStream getOut() {
         return out;
     }
 
+    /**
+     * Zwraca strumien wejsciowy
+     *
+     * @return ObjectInputStream
+     */
     public ObjectInputStream getIn() {
         return in;
     }
